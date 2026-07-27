@@ -598,6 +598,7 @@ function hideAll() {
   ['homePage','quizPage','mockPage','wrongPage','jumpPage','skillDetailPage'].forEach(function(id) {
     document.getElementById(id).style.display = 'none';
   });
+  window.scrollTo(0, 0);
 }
 
 function showHome() {

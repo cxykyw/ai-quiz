@@ -68,8 +68,8 @@ main{flex:1;min-width:0;padding:22px 30px 120px}
 .codebar{background:#f0f2f5;border-bottom:1px solid var(--line);padding:5px 12px;
   font-size:11.5px;color:var(--dim);font-weight:600}
 pre.code{margin:0;padding:13px 14px;background:var(--code-bg);overflow-x:auto;
-  font:13px/2.1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  white-space:pre-wrap;word-break:break-word}
+  font:13px/1.8 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  white-space:pre;tab-size:4}
 
 /* 填空输入 */
 input.bl{font:inherit;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -104,6 +104,7 @@ input.bl.noans::placeholder{color:#a5abb3;font-size:11.5px}
 @media print{
   header,nav,.qact,.codebar,sup.wcnt{display:none}
   body{background:#fff} main{padding:0}
+  pre.code{white-space:pre-wrap;word-break:break-word}
   .q{break-inside:avoid;border:none;border-bottom:2px solid #ccc;border-radius:0;
      padding:14px 0;margin:0}
   input.bl{background:#fff;border-bottom:1.4px solid #333;min-width:90px}
@@ -170,6 +171,14 @@ body.hide-cmt pre.code .cmt{display:none}
   span.cmt{color:#8a8a8a;font-style:italic;}
   body.hide-cmt span.cmt{display:none;}
   @media print{ body.hide-cmt span.cmt{display:none;} }
+
+/* Python 语法高亮配色（GitHub Light 风格，由 highlightPy() 注入） */
+pre.code .py-kw{color:#cf222e}
+pre.code .py-bi{color:#8250df}
+pre.code .py-str{color:#0a3069}
+pre.code .py-num{color:#0550ae}
+pre.code .py-com{color:#6a737d}
+pre.code .py-prompt{color:#8c959f}
 </style></head><body>
 
 <header>
@@ -1734,6 +1743,52 @@ const io=new IntersectionObserver(es=>{
 },{rootMargin:'-60px 0px -75% 0px'});
 $$('.q').forEach(s=>io.observe(s));
 
-load(); progress(); fitAll();
+/* ---- Python 语法高亮 ----
+   只处理 pre.code 内的文本节点，把关键字/内置函数/字符串/数字/注释包上
+   带颜色类名的 span；不触碰 input.bl 填空、.cmt 原文档注释和空白换行节点。
+   判分只读 input 的 value/data-a，因此高亮不影响任何判分与交互逻辑。 */
+const PY_KW=new Set(('import from as def return lambda if elif else for while in not and or is '
+  +'class with try except finally raise pass break continue global nonlocal yield del assert '
+  +'None True False async await').split(' '));
+const PY_BI=new Set(('print len range enumerate zip map filter int float str bool list dict set '
+  +'tuple sum min max abs round sorted type open isinstance any all').split(' '));
+const PY_RE=/(In\[\d*\]:)|(#[^\n]*)|('(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*")|(\b\d+(?:\.\d+)?\b)|([A-Za-z_]\w*)/g;
+function highlightPy(){
+  $$('pre.code').forEach(pre=>{
+    const tw=document.createTreeWalker(pre,NodeFilter.SHOW_TEXT);
+    const nodes=[];
+    while(tw.nextNode()){
+      const p=tw.currentNode.parentElement;
+      if(!(p&&p.closest('.cmt'))) nodes.push(tw.currentNode);
+    }
+    nodes.forEach(node=>{
+      const s=node.nodeValue;
+      let m,last=0,frag=null;
+      PY_RE.lastIndex=0;
+      while((m=PY_RE.exec(s))){
+        let cls='';
+        if(m[1])cls='py-prompt';
+        else if(m[2])cls='py-com';
+        else if(m[3])cls='py-str';
+        else if(m[4])cls='py-num';
+        else if(PY_KW.has(m[5]))cls='py-kw';
+        else if(PY_BI.has(m[5]))cls='py-bi';
+        if(!cls) continue;
+        if(!frag) frag=document.createDocumentFragment();
+        if(m.index>last) frag.appendChild(document.createTextNode(s.slice(last,m.index)));
+        const sp=document.createElement('span');
+        sp.className=cls; sp.textContent=m[0];
+        frag.appendChild(sp);
+        last=m.index+m[0].length;
+      }
+      if(frag){
+        if(last<s.length) frag.appendChild(document.createTextNode(s.slice(last)));
+        node.parentNode.replaceChild(frag,node);
+      }
+    });
+  });
+}
+
+highlightPy(); load(); progress(); fitAll();
 </script>
 </body></html>
